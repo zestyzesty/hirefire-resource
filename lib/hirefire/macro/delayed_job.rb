@@ -61,6 +61,13 @@ module HireFire
                 ActiveRecord::Base.clear_active_connections!
               end
             end
+          when :sequel
+            c = c.where(:failed_at => nil)
+            c = c.where("run_at <= ?", Time.now.utc)
+            c = c.where("priority >= ?", options[:min_priority]) if options.key?(:min_priority)
+            c = c.where("priority <= ?", options[:max_priority]) if options.key?(:max_priority)
+            c = c.where(:queue => queues) unless queues.empty?
+            c.count
           when :mongoid
             c = ::Delayed::Job
             c = c.where(:failed_at => nil)
@@ -70,7 +77,7 @@ module HireFire
             c = c.where(:queue.in => queues) unless queues.empty?
             c.count
           else
-            raise %{Must pass in :mapper => :active_record or :mapper => :mongoid\n} +
+            raise %{Must pass in :mapper => :active_record , :mapper => :sequel or :mapper => :mongoid\n} +
               %{For example: HireFire::Macro::Delayed::Job.queue("worker", :mapper => :active_record)}
           end
         end
